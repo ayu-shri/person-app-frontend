@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Sparkles, TrendingUp, TrendingDown, Minus, ChevronRight, BarChart3, Moon, Sun, X, Briefcase, DollarSign, Smartphone } from 'lucide-react';
+import { Users, Sparkles, TrendingUp, TrendingDown, Minus, ChevronRight, BarChart3, Moon, Sun, X, Briefcase, MapPin, DollarSign, Smartphone, Download, Zap } from 'lucide-react';
 
 const FocusGroupSimulator = () => {
     const [darkMode, setDarkMode] = useState(false);
@@ -15,6 +15,40 @@ const FocusGroupSimulator = () => {
 
     // For testing in artifact, use localhost. In your actual app, use process.env.REACT_APP_API_URL
     const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
+    // Pre-built focus group templates
+    const templates = [
+        {
+            name: "Gen Z Tech Users",
+            icon: "📱",
+            description: "Tech-savvy 18-26 year olds, early adopters, active on social media, value authenticity and sustainability",
+            numProfiles: 8
+        },
+        {
+            name: "Suburban Parents",
+            icon: "🏡",
+            description: "Parents aged 30-45 living in suburban areas, budget-conscious, family-oriented, prioritize convenience and safety",
+            numProfiles: 8
+        },
+        {
+            name: "C-Suite Executives",
+            icon: "💼",
+            description: "Senior executives aged 40-60, high earners, decision-makers, value efficiency and ROI, limited time",
+            numProfiles: 6
+        },
+        {
+            name: "Small Business Owners",
+            icon: "🏪",
+            description: "Entrepreneurs aged 28-50, bootstrapped mindset, wear multiple hats, pragmatic, cost-sensitive",
+            numProfiles: 7
+        },
+        {
+            name: "Health-Conscious Millennials",
+            icon: "🥗",
+            description: "Millennials aged 26-40, fitness-focused, organic food buyers, willing to pay premium for quality",
+            numProfiles: 8
+        }
+    ];
 
     const generateProfiles = async () => {
         setLoading(true);
@@ -89,6 +123,171 @@ const FocusGroupSimulator = () => {
         if (sentiment === 'Positive') return <TrendingUp className="w-4 h-4" />;
         if (sentiment === 'Negative') return <TrendingDown className="w-4 h-4" />;
         return <Minus className="w-4 h-4" />;
+    };
+
+    // Calculate sentiment distribution for pie chart
+    const getSentimentDistribution = () => {
+        if (!simulationData || !simulationData.profileReactions) return null;
+        
+        const counts = { Positive: 0, Neutral: 0, Negative: 0 };
+        simulationData.profileReactions.forEach(reaction => {
+            counts[reaction.sentiment]++;
+        });
+        
+        const total = simulationData.profileReactions.length;
+        return {
+            positive: { count: counts.Positive, percentage: (counts.Positive / total * 100).toFixed(1) },
+            neutral: { count: counts.Neutral, percentage: (counts.Neutral / total * 100).toFixed(1) },
+            negative: { count: counts.Negative, percentage: (counts.Negative / total * 100).toFixed(1) }
+        };
+    };
+
+    // Download PDF function using jsPDF
+    const downloadPDF = () => {
+        // Check if jsPDF is available
+        if (typeof window.jspdf === 'undefined') {
+            alert('PDF library is loading. Please try again in a moment.');
+            
+            // Load jsPDF from CDN
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            script.onload = () => {
+                setTimeout(() => downloadPDF(), 500);
+            };
+            document.head.appendChild(script);
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const distribution = getSentimentDistribution();
+        
+        let y = 20;
+        const lineHeight = 7;
+        const pageHeight = 280;
+        
+        // Helper to check if we need a new page
+        const checkNewPage = () => {
+            if (y > pageHeight) {
+                doc.addPage();
+                y = 20;
+            }
+        };
+        
+        // Title
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text('Focus Group Simulation Report', 105, y, { align: 'center' });
+        y += 15;
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, y, { align: 'center' });
+        y += 15;
+        
+        // Overall Score
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.text('Overall Sentiment Score', 20, y);
+        y += 10;
+        
+        doc.setFontSize(24);
+        const score = simulationData.overallSentimentScore;
+        const scoreColor = score >= 2 ? [16, 185, 129] : score <= -2 ? [239, 68, 68] : [245, 158, 11];
+        doc.setTextColor(...scoreColor);
+        doc.text(`${score > 0 ? '+' : ''}${score} / 10`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        // Sentiment Distribution
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Sentiment Distribution', 20, y);
+        y += 8;
+        
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Positive: ${distribution.positive.count} (${distribution.positive.percentage}%)`, 25, y);
+        y += 6;
+        doc.text(`Neutral: ${distribution.neutral.count} (${distribution.neutral.percentage}%)`, 25, y);
+        y += 6;
+        doc.text(`Negative: ${distribution.negative.count} (${distribution.negative.percentage}%)`, 25, y);
+        y += 12;
+        
+        checkNewPage();
+        
+        // Executive Summary
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Executive Summary', 20, y);
+        y += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        const summaryLines = doc.splitTextToSize(simulationData.executiveSummary, 170);
+        summaryLines.forEach(line => {
+            checkNewPage();
+            doc.text(line, 20, y);
+            y += lineHeight;
+        });
+        y += 5;
+        
+        checkNewPage();
+        
+        // Key Insights
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Key Insights', 20, y);
+        y += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        simulationData.keyFindings.forEach((finding, idx) => {
+            checkNewPage();
+            const findingLines = doc.splitTextToSize(`${idx + 1}. ${finding}`, 165);
+            findingLines.forEach(line => {
+                checkNewPage();
+                doc.text(line, 20, y);
+                y += lineHeight;
+            });
+            y += 3;
+        });
+        y += 5;
+        
+        checkNewPage();
+        
+        // Individual Reactions
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Individual Participant Reactions', 20, y);
+        y += 10;
+        
+        simulationData.profileReactions.forEach((reaction, idx) => {
+            checkNewPage();
+            
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${reaction.name} - ${reaction.sentiment}`, 20, y);
+            y += 6;
+            
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            const reasonLines = doc.splitTextToSize(reaction.reason, 165);
+            reasonLines.forEach(line => {
+                checkNewPage();
+                doc.text(line, 25, y);
+                y += 6;
+            });
+            y += 4;
+        });
+        
+        // Save the PDF
+        doc.save(`focus-group-report-${Date.now()}.pdf`);
+    };
+
+    const applyTemplate = (template) => {
+        setGroupDescription(template.description);
+        setNumProfiles(template.numProfiles);
     };
 
     const bgClass = darkMode ? 'bg-gray-950' : 'bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50';
@@ -194,6 +393,37 @@ const FocusGroupSimulator = () => {
                                         rows="4"
                                         className={`w-full px-4 py-3 border-2 rounded-2xl transition-all duration-200 ${inputClass}`}
                                     />
+                                </div>
+
+                                {/* Template Selection */}
+                                <div>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Zap className={`w-4 h-4 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+                                        <label className={`text-sm font-semibold ${textPrimary}`}>
+                                            Or choose a template:
+                                        </label>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {templates.map((template, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => applyTemplate(template)}
+                                                className={`p-4 rounded-xl border-2 text-left transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                                                    darkMode 
+                                                        ? 'bg-gray-800 border-gray-700 hover:border-purple-500' 
+                                                        : 'bg-purple-50 border-purple-200 hover:border-purple-400'
+                                                }`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <span className="text-2xl">{template.icon}</span>
+                                                    <div className="flex-1">
+                                                        <div className={`font-bold ${textPrimary} mb-1`}>{template.name}</div>
+                                                        <div className={`text-xs ${textSecondary} line-clamp-2`}>{template.description}</div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 <div>
@@ -365,24 +595,105 @@ const FocusGroupSimulator = () => {
                 {/* Step 4: Results */}
                 {step === 4 && simulationData && (
                     <div className="space-y-6 animate-fade-in">
-                        {/* Overall Score */}
-                        <div className={`${cardClass} rounded-3xl shadow-2xl p-10 border transition-colors duration-300`}>
-                            <div className="text-center">
-                                <div className="inline-block">
-                                    <div className={`text-8xl font-black mb-4 bg-gradient-to-r ${
-                                        simulationData.overallSentimentScore >= 2 ? 'from-emerald-600 to-green-600' :
-                                        simulationData.overallSentimentScore <= -2 ? 'from-rose-600 to-red-600' : 'from-amber-600 to-yellow-600'
-                                    } bg-clip-text text-transparent`}>
-                                        {simulationData.overallSentimentScore > 0 ? '+' : ''}{simulationData.overallSentimentScore}
-                                    </div>
-                                    <div className={`text-base ${textSecondary} mb-6 font-medium`}>Overall Sentiment Score</div>
-                                    <div className="flex items-center justify-center gap-3 text-sm font-medium">
-                                        <span className="text-rose-600">-5</span>
-                                        <div className="w-48 h-3 bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 rounded-full shadow-inner" />
-                                        <span className="text-emerald-600">+5</span>
+                        {/* Download Button */}
+                        <div className="flex justify-end">
+                            <button
+                                onClick={downloadPDF}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold transition-all duration-200 hover:scale-105 ${
+                                    darkMode 
+                                        ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
+                                        : 'bg-white text-slate-700 hover:bg-slate-50 shadow-lg'
+                                }`}
+                            >
+                                <Download className="w-5 h-5" />
+                                Download Report
+                            </button>
+                        </div>
+
+                        {/* Overall Score & Pie Chart */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Overall Score */}
+                            <div className={`${cardClass} rounded-3xl shadow-2xl p-8 border transition-colors duration-300`}>
+                                <div className="text-center">
+                                    <div className="inline-block">
+                                        <div className={`text-7xl font-black mb-4 bg-gradient-to-r ${
+                                            simulationData.overallSentimentScore >= 2 ? 'from-emerald-600 to-green-600' :
+                                            simulationData.overallSentimentScore <= -2 ? 'from-rose-600 to-red-600' : 'from-amber-600 to-yellow-600'
+                                        } bg-clip-text text-transparent`}>
+                                            {simulationData.overallSentimentScore > 0 ? '+' : ''}{simulationData.overallSentimentScore}
+                                        </div>
+                                        <div className={`text-base ${textSecondary} mb-6 font-medium`}>Overall Sentiment Score</div>
+                                        <div className="flex items-center justify-center gap-3 text-sm font-medium">
+                                            <span className="text-rose-600">-5</span>
+                                            <div className="w-32 h-3 bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 rounded-full shadow-inner" />
+                                            <span className="text-emerald-600">+5</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Pie Chart */}
+                            {(() => {
+                                const dist = getSentimentDistribution();
+                                const positiveAngle = (dist.positive.percentage / 100) * 360;
+                                const neutralAngle = (dist.neutral.percentage / 100) * 360;
+                                const negativeAngle = (dist.negative.percentage / 100) * 360;
+                                
+                                return (
+                                    <div className={`${cardClass} rounded-3xl shadow-2xl p-8 border transition-colors duration-300`}>
+                                        <h3 className={`text-xl font-bold ${textPrimary} mb-6 text-center`}>Sentiment Distribution</h3>
+                                        <div className="flex items-center justify-center mb-6">
+                                            <div className="relative w-48 h-48">
+                                                {/* Simple pie chart using conic gradient */}
+                                                <div 
+                                                    className="w-full h-full rounded-full"
+                                                    style={{
+                                                        background: `conic-gradient(
+                                                            from 0deg,
+                                                            #10b981 0deg ${positiveAngle}deg,
+                                                            #f59e0b ${positiveAngle}deg ${positiveAngle + neutralAngle}deg,
+                                                            #ef4444 ${positiveAngle + neutralAngle}deg 360deg
+                                                        )`,
+                                                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                                                    }}
+                                                />
+                                                <div className={`absolute inset-0 flex items-center justify-center`}>
+                                                    <div className={`w-24 h-24 rounded-full ${darkMode ? 'bg-gray-900' : 'bg-white'} shadow-inner`} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-4 h-4 bg-emerald-500 rounded-full"></div>
+                                                    <span className={`text-sm font-medium ${textPrimary}`}>Positive</span>
+                                                </div>
+                                                <span className={`text-sm font-bold ${textPrimary}`}>
+                                                    {dist.positive.count} ({dist.positive.percentage}%)
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-4 h-4 bg-amber-500 rounded-full"></div>
+                                                    <span className={`text-sm font-medium ${textPrimary}`}>Neutral</span>
+                                                </div>
+                                                <span className={`text-sm font-bold ${textPrimary}`}>
+                                                    {dist.neutral.count} ({dist.neutral.percentage}%)
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-4 h-4 bg-rose-500 rounded-full"></div>
+                                                    <span className={`text-sm font-medium ${textPrimary}`}>Negative</span>
+                                                </div>
+                                                <span className={`text-sm font-bold ${textPrimary}`}>
+                                                    {dist.negative.count} ({dist.negative.percentage}%)
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Executive Summary */}
