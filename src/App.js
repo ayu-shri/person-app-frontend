@@ -14,7 +14,7 @@ const FocusGroupSimulator = () => {
     const [selectedProfile, setSelectedProfile] = useState(null);
 
     // For testing in artifact, use localhost. In your actual app, use process.env.REACT_APP_API_URL
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
     const generateProfiles = async () => {
         setLoading(true);
